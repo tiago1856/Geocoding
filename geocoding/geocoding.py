@@ -11,7 +11,7 @@ from geopy.geocoders import GoogleV3
 from geopy.geocoders import TomTom
 #from geopy.geocoders import Nominatim
 #from geopy.geocoders import Bing
-#from geopy.geocoders import Here
+from geopy.geocoders import Here
 #from geopy.geocoders import AzureMaps
 
 from geopy.exc import (
@@ -123,6 +123,9 @@ class Geocode():
 				result["localidade"] = ",".join([x['long_name'] for x in answer.get('address_components') 
 									  if 'locality' in x.get('types')]).split(',')[0]
 
+			else:
+				result['status'] = "ZERO_RESULTS"
+
 		except (GeocoderQueryError,GeocoderAuthenticationFailure,GeocoderInsufficientPrivileges,ConfigurationError):
 			result['status'] = 'ACCESS_ERROR'
 		except GeocoderQuotaExceeded:
@@ -198,6 +201,9 @@ class Geocode():
 				#if saveraw:
 				#	result["response"] = location[0].raw
 				# 	
+			else:
+				result['status'] = "ZERO_RESULTS"
+
 		except (GeocoderQueryError,GeocoderAuthenticationFailure,GeocoderInsufficientPrivileges,ConfigurationError):
 			result['status'] = 'ACCESS_ERROR'
 		except GeocoderQuotaExceeded:
@@ -210,6 +216,77 @@ class Geocode():
 			result['status'] = 'UNKNOWN_ERROR'
 		
 		return result
+
+
+	def here(self, address = None, city=None, country=None, key_tomtom=None):
+
+		if not key_tomtom:
+			raise RuntimeError("Requires a key! Check https://developer.here.com/ for more information.")
+		if not address and not city and not country:
+			raise RuntimeError("Requires an address and/or a city and/or a country!")
+
+
+		addr = ("" if address is None else ", " + address)
+		addr += ("" if city is None else ", " + city)
+		addr += ("" if country is None else ", " + country)
+
+		result = self.newResult()
+		result['service']  = 'here'
+		result['status'] = 'ZERO_RESULTS'
+
+
+		try:		
+			geolocator_here = Here(apikey=key_tomtom)
+			location = geolocator_here.geocode(addr, exactly_one=False,language="pt-PT")
+
+
+			if location is not None:
+				answer = location[0].raw
+				
+				result['status'] = "OK"
+				result["latitude"] = location[0].latitude
+				result["longitude"] = location[0].longitude
+				result["number_of_results"] = len(location)
+				
+				result["input_string"] = address
+				
+				result["accuracy"] = answer.get('Relevance')
+				
+				if answer.get("Location"):
+					result["formatted_address"] = answer.get("Location").get('Address').get('Label')
+					result["place_id"] = answer.get("Location").get("LocationId")
+					
+				
+				if answer.get("Location"):
+					if answer.get("Location").get("Address"):
+						result["postcode"] = answer.get("Location").get("Address").get("PostalCode")	
+						# all 4 are not tghrustworthy
+						result["freguesia"] = answer.get("Location").get("Address").get("District")		
+						result["distrito"] = answer.get("Location").get("Address").get("County")
+						result["concelho"] = answer.get("Location").get("Address").get("City")
+						result["localidade"] = answer.get("Location").get("Address").get("City")		
+				
+				#if saveraw:
+				#	output["response"] = location[0].raw
+
+			else:
+				result['status'] = "ZERO_RESULTS"
+		
+		except (GeocoderQueryError,GeocoderAuthenticationFailure,GeocoderInsufficientPrivileges,ConfigurationError):
+			result['status'] = 'ACCESS_ERROR'
+		except GeocoderQuotaExceeded:
+			result['status'] = 'QUOTA_EXCEEDED'
+		except GeocoderTimedOut:
+			result['status'] = 'TIME_OUT'
+		except (GeocoderServiceError,GeocoderUnavailable,GeocoderNotFound):
+			result['status'] = 'SERVICE_ERROR'
+		except Exception as e:
+			print(e)
+			result['status'] = 'UNKNOWN_ERROR'
+		
+		return result
+
+
 
 
 	def nominatim(self, addr, local, country, saveraw):
@@ -318,62 +395,6 @@ class Geocode():
 
 
 
-
-	def here(self, addr, local, country, saveraw):
-		output=self.initOutput()	
-		
-		# create query	
-		address = "" if addr is None else addr
-		address = address + ("" if local is None else "," + local)
-		address = address + ("" if country is None else "," + country)
-		
-
-		
-		# init service if not init yet
-		if not self.geolocator_here:		
-			self.geolocator_here = Here(app_id=self.SERVICES[self.CURRENT_SERVICE]['app_id'], app_code=self.SERVICES[self.CURRENT_SERVICE]['app_code'])
-
-
-		# geocode address
-		location = self.geolocator_here.geocode(address, exactly_one=False,language="pt-PT")
-		if location is not None:
-			answer = location[0].raw
-			
-			output['status'] = "OK"
-			output["latitude"] = location[0].latitude
-			output["longitude"] = location[0].longitude
-			output["number_of_results"] = len(location)
-			
-			output["input_string"] = address
-			
-			output["accuracy"] = answer.get('Relevance')
-			
-			if answer.get("Location"):
-				output["formatted_address"] = answer.get("Location").get('Address').get('Label')
-				output["place_id"] = answer.get("Location").get("LocationId")
-				
-			
-			if answer.get("Location"):
-				if answer.get("Location").get("Address"):
-					output["postcode"] = answer.get("Location").get("Address").get("PostalCode")	
-					# all 4 are not tghrustworthy
-					output["freguesia"] = answer.get("Location").get("Address").get("District")		
-					output["distrito"] = answer.get("Location").get("Address").get("County")
-					output["concelho"] = answer.get("Location").get("Address").get("City")
-					output["localidade"] = answer.get("Location").get("Address").get("City")		
-			
-
-			
-			output["service"] = self.SERVICES[self.CURRENT_SERVICE]['service']
-			
-
-			if saveraw:
-				output["response"] = location[0].raw
-
-		else:
-			output['status'] = "ZERO_RESULTS"
-		
-		return output
 
 
 
