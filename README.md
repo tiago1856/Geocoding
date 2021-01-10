@@ -1,4 +1,4 @@
-# Geocoding API
+# Geocoding
 
 ## Version
 
