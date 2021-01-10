@@ -1,9 +1,9 @@
 
 import geocoding as geocode
-from config import GOOGLE_KEY
+from keys import GOOGLE_KEY
 
-print (geocode.__version__)
-print (geocode.__doc__)
+#print (geocode.__version__)
+#print (geocode.__doc__)
 
 
 try:
