@@ -40,7 +40,7 @@ pip install -r requirements.txt
 * **postcode**
 * **input_string**
 * **number_of_results**
-* **status**
+* **status** (OK, ZERO_RESULTS, ACCESS_ERROR, QUOTA_EXCEEDED, TIME_OUT, SERVICE_ERROR, UNKNOWN_ERROR)
 * **response**
 * **localidade**
 * **distrito**
@@ -55,6 +55,20 @@ pip install -r requirements.txt
 * [Bing](https://www.bingmapsportal.com/)
 * [Nominatum](https://nominatim.org/)
 * ~~Azure~~
+
+
+
+## Main Functions
+
+
+```python
+google(self, address=None, name=None, city=None, country=None, key_google=None)
+tomtom(self, address = None, city=None, country=None, key_tomtom=None)
+here(self, address = None, city=None, country=None, key_tomtom=None)
+bing(self, address = None, city=None, country=None, key_bing=None)
+nominatum(self, address = None, city=None, country=None)
+```
+
 
 
 ## Usage
