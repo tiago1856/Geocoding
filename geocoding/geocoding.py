@@ -8,7 +8,7 @@ import csv
 
 
 from geopy.geocoders import GoogleV3
-#from geopy.geocoders import TomTom
+from geopy.geocoders import TomTom
 #from geopy.geocoders import Nominatim
 #from geopy.geocoders import Bing
 #from geopy.geocoders import Here
@@ -90,8 +90,8 @@ class Geocode():
 	def google(self, address=None, name=None, city=None, country=None, key_google=None):
 		if not key_google:
 			raise RuntimeError("Requires a key! Check https://developers.google.com/maps/documentation/geocoding/get-api-key for more information.")
-		if not address and not name:
-			raise RuntimeError("Requires either a name or an address!")
+		if not address and not name and not city and not country:
+			raise RuntimeError("Requires name and/or an address and/or a city and/or a country!")
 
 		addr = "" if name is None else name
 		addr += ("" if address is None else ", " + address)
@@ -140,65 +140,76 @@ class Geocode():
 
 
 
-	def tomtom(self, addr, local, country, saveraw):
-		output=self.initOutput()	
-		# create query	
-		address = "" if addr is None else addr
-		address = address + ("" if local is None else "," + local)
-		address = address + ("" if country is None else "," + country)
-		# init service if not init yet
-		if not self.geolocator_tomtom:		
-			self.geolocator_tomtom = TomTom(api_key=self.SERVICES[self.CURRENT_SERVICE]['key'])#,default_scheme = 'https')
+	def tomtom(self, address = None, city=None, country=None, key_tomtom=None):
 
-		# geocode address
-		location = self.geolocator_tomtom.geocode(address, exactly_one=False) #, components={"country": "PT"})
-		if location is not None:
-			answer = location[0].raw
-			
-			output['status'] = "OK"
-			output["latitude"] = location[0].latitude
-			output["longitude"] = location[0].longitude
-			
-			output["accuracy"] = answer.get('score')
-			output["input_string"] = address
-			output["number_of_results"] = len(location)#answer.get("numResults")
-			output["place_id"] = answer.get("id")
-			
-			if  answer.get("address"):
-				output["distrito"] = answer.get("address").get("countrySubdivision")
+		if not key_tomtom:
+			raise RuntimeError("Requires a key! Check https://developer.tomtom.com/search-api/search-api-documentation/geocoding for more information.")
+		if not address and not city and not country:
+			raise RuntimeError("Requires an address and/or a city and/or a country!")
+
+
+		addr = ("" if address is None else ", " + address)
+		addr += ("" if city is None else ", " + city)
+		addr += ("" if country is None else ", " + country)
+
+		result = self.newResult()
+		result['service']  = 'tomtom'
+		result['status'] = 'ZERO_RESULTS'
+
+
+		try:	
+			geolocator_tomtom = TomTom(api_key=key_tomtom)
+			location = geolocator_tomtom.geocode(addr, exactly_one=False)
+			if location is not None:
+				answer = location[0].raw
+				
+				result['status'] = "OK"
+				result["latitude"] = location[0].latitude
+				result["longitude"] = location[0].longitude
+				
+				result["accuracy"] = answer.get('score')
+				result["input_string"] = address
+				result["number_of_results"] = len(location)#answer.get("numResults")
+				result["place_id"] = answer.get("id")
+				
+				if answer.get("address"):
+					result["distrito"] = answer.get("address").get("countrySubdivision")
+					# maybe?
+					result["concelho"] = answer.get("address").get("municipality")
+					result["freguesia"] = answer.get("address").get("municipalitySubdivision")
+					result["formatted_address"] = answer.get('address').get('freeformAddress')
+					CPext = answer.get("address").get('extendedPostalCode')
+					CP = answer.get("address").get('postalCode')
+					if CPext:
+						CPext = CPext.split(',')[0]
+						CPext = CPext[:4] + '-' + CPext[4:]
+						result["postcode"] = CPext
+					elif CP:
+						result["postcode"] = CP.split(',')[0]
+					
+					
+					
+				result["type"] = answer.get('type')
+				#result["query_type"] = answer.get("queryType")
+				
 				# maybe?
-				output["concelho"] = answer.get("address").get("municipality")
-				output["freguesia"] = answer.get("address").get("municipalitySubdivision")
-				output["formatted_address"] = answer.get('address').get('freeformAddress')
-				CPext = answer.get("address").get('extendedPostalCode')
-				CP = answer.get("address").get('postalCode')
-				if CPext:
-					CPext = CPext.split(',')[0]
-					CPext = CPext[:4] + '-' + CPext[4:]
-					output["postcode"] = CPext
-				elif CP:
-					output["postcode"] = CP.split(',')[0]
+				#result["localidade"] = answer.get("address").get("municipality")	
 				
-				
-				
-			output["type"] = answer.get('type')
-			#output["query_type"] = answer.get("queryType")
-			
-			# maybe?
-			#output["localidade"] = answer.get("address").get("municipality")
-			
-			
-			
-			
-			output["service"] = self.SERVICES[self.CURRENT_SERVICE]['service']
-			
-			if saveraw:
-				output["response"] = location[0].raw	
-
-		else:
-			output['status'] = "ZERO_RESULTS"
+				#if saveraw:
+				#	result["response"] = location[0].raw
+				# 	
+		except (GeocoderQueryError,GeocoderAuthenticationFailure,GeocoderInsufficientPrivileges,ConfigurationError):
+			result['status'] = 'ACCESS_ERROR'
+		except GeocoderQuotaExceeded:
+			result['status'] = 'QUOTA_EXCEEDED'
+		except GeocoderTimedOut:
+			result['status'] = 'TIME_OUT'
+		except (GeocoderServiceError,GeocoderUnavailable,GeocoderNotFound):
+			result['status'] = 'SERVICE_ERROR'
+		except Exception as e:
+			result['status'] = 'UNKNOWN_ERROR'
 		
-		return output
+		return result
 
 
 	def nominatim(self, addr, local, country, saveraw):
