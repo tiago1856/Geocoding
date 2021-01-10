@@ -1,7 +1,7 @@
 #import pandas as pd
 import logging
 #import time
-#import re
+import re
 #import random
 import csv
 
@@ -9,9 +9,9 @@ import csv
 
 from geopy.geocoders import GoogleV3
 from geopy.geocoders import TomTom
-#from geopy.geocoders import Nominatim
-#from geopy.geocoders import Bing
+from geopy.geocoders import Bing
 from geopy.geocoders import Here
+from geopy.geocoders import Nominatim
 #from geopy.geocoders import AzureMaps
 
 from geopy.exc import (
@@ -123,8 +123,6 @@ class Geocode():
 				result["localidade"] = ",".join([x['long_name'] for x in answer.get('address_components') 
 									  if 'locality' in x.get('types')]).split(',')[0]
 
-			else:
-				result['status'] = "ZERO_RESULTS"
 
 		except (GeocoderQueryError,GeocoderAuthenticationFailure,GeocoderInsufficientPrivileges,ConfigurationError):
 			result['status'] = 'ACCESS_ERROR'
@@ -201,8 +199,6 @@ class Geocode():
 				#if saveraw:
 				#	result["response"] = location[0].raw
 				# 	
-			else:
-				result['status'] = "ZERO_RESULTS"
 
 		except (GeocoderQueryError,GeocoderAuthenticationFailure,GeocoderInsufficientPrivileges,ConfigurationError):
 			result['status'] = 'ACCESS_ERROR'
@@ -239,7 +235,6 @@ class Geocode():
 			geolocator_here = Here(apikey=key_tomtom)
 			location = geolocator_here.geocode(addr, exactly_one=False,language="pt-PT")
 
-
 			if location is not None:
 				answer = location[0].raw
 				
@@ -269,9 +264,123 @@ class Geocode():
 				#if saveraw:
 				#	output["response"] = location[0].raw
 
-			else:
-				result['status'] = "ZERO_RESULTS"
 		
+		except (GeocoderQueryError,GeocoderAuthenticationFailure,GeocoderInsufficientPrivileges,ConfigurationError):
+			result['status'] = 'ACCESS_ERROR'
+		except GeocoderQuotaExceeded:
+			result['status'] = 'QUOTA_EXCEEDED'
+		except GeocoderTimedOut:
+			result['status'] = 'TIME_OUT'
+		except (GeocoderServiceError,GeocoderUnavailable,GeocoderNotFound):
+			result['status'] = 'SERVICE_ERROR'
+		except Exception as e:
+			result['status'] = 'UNKNOWN_ERROR'
+		
+		return result
+
+
+
+
+	def bing(self, address = None, city=None, country=None, key_bing=None):
+
+		if not key_bing:
+			raise RuntimeError("Requires a key! Check https://www.bingmapsportal.com/ for more information.")
+		if not address and not city and not country:
+			raise RuntimeError("Requires an address and/or a city and/or a country!")
+
+
+		addr = ("" if address is None else ", " + address)
+		addr += ("" if city is None else ", " + city)
+		addr += ("" if country is None else ", " + country)
+
+		result = self.newResult()
+		result['service']  = 'bing'
+		result['status'] = 'ZERO_RESULTS'
+
+
+		try:		
+			geolocator_bing = Bing(api_key=key_bing)
+			location = geolocator_bing.geocode(address,  exactly_one=False) #culture='PT',  include_neighborhood=True,
+			if location is not None:
+				answer = location[0].raw
+				
+				result['status'] = "OK"
+				result["latitude"] = location[0].latitude
+				result["longitude"] = location[0].longitude
+				result["number_of_results"] = len(location)
+				
+				
+				if answer.get("address"):
+					result["formatted_address"] = answer.get('address').get('formattedAddress')
+					result["localidade"] = answer.get("address").get("locality")
+					result["distrito"] = answer.get("address").get("adminDistrict")
+					result["concelho"] = answer.get("address").get("adminDistrict2")
+					result["freguesia"] = answer.get("address").get("neighborhood")		
+					result["postcode"] = answer.get("address").get("postalCode")
+				
+				result["accuracy"] = answer.get('confidence')
+				
+				result["input_string"] = address								
+
+			#	if saveraw:
+			#		result["response"] = location[0].raw	
+		
+		except (GeocoderQueryError,GeocoderAuthenticationFailure,GeocoderInsufficientPrivileges,ConfigurationError):
+			result['status'] = 'ACCESS_ERROR'
+		except GeocoderQuotaExceeded:
+			result['status'] = 'QUOTA_EXCEEDED'
+		except GeocoderTimedOut:
+			result['status'] = 'TIME_OUT'
+		except (GeocoderServiceError,GeocoderUnavailable,GeocoderNotFound):
+			result['status'] = 'SERVICE_ERROR'
+		except Exception as e:
+			result['status'] = 'UNKNOWN_ERROR'
+		
+		return result
+
+
+	def nominatum(self, address = None, city=None, country=None):
+
+		if not address and not city and not country:
+			raise RuntimeError("Requires an address and/or a city and/or a country!")
+
+
+		addr = ("" if address is None else ", " + address)
+		addr += ("" if city is None else ", " + city)
+		addr += ("" if country is None else ", " + country)
+
+		result = self.newResult()
+		result['service']  = 'nominatum'
+		result['status'] = 'ZERO_RESULTS'
+
+
+		try:		
+			geolocator_nominatum = Nominatim(user_agent="tests_1")			
+			location = geolocator_nominatum.geocode(address, exactly_one=False,  addressdetails=True)
+			if location is not None:
+				answer = location[0].raw
+				
+				result['status'] = "OK"
+				result["latitude"] = location[0].latitude
+				result["longitude"] = location[0].longitude
+				result["number_of_results"] = len(location)
+				#result["accuracy"] = answer.get('importance')
+				result["place_id"] = answer.get("osm_id")
+				result["input_string"] = address
+				if answer.get("address"):
+					result["postcode"] = re.sub('[^0-9-]+', '', answer.get("address").get("postcode")) ###???
+					result["freguesia"] = answer.get("address").get("suburb")
+					result["localidade"] = answer.get("address").get("city")
+					if not result["localidade"]:
+						result["localidade"] = answer.get("address").get("town")
+					result["formatted_address"] = answer.get('address').get('display_name')
+					
+				result["type"] = answer.get('osm_type')
+				
+				
+				#if saveraw:
+				#	result["response"] = location[0].raw		
+
 		except (GeocoderQueryError,GeocoderAuthenticationFailure,GeocoderInsufficientPrivileges,ConfigurationError):
 			result['status'] = 'ACCESS_ERROR'
 		except GeocoderQuotaExceeded:
@@ -288,119 +397,8 @@ class Geocode():
 
 
 
-
-	def nominatim(self, addr, local, country, saveraw):
-		output=self.initOutput()	
-		
-		# create query	
-		address = "" if addr is None else addr
-		address = address + ("" if local is None else "," + local)
-		address = address + ("" if country is None else "," + country)
-		
-		'''
-		query = {	'street': data[1],
-					'city':data[2],
-					'country': 'Portugal'
-				}
-		'''
-		
-		# init service if not init yet
-		if not self.geolocator_nominatum:		
-			self.geolocator_nominatum = Nominatim(user_agent="tests_1")
-		
-		
-		# geocode address
-		location = self.geolocator_nominatum.geocode(address, exactly_one=False,  addressdetails=True)
-		if location is not None:
-			answer = location[0].raw
-			
-			output['status'] = "OK"
-			output["latitude"] = location[0].latitude
-			output["longitude"] = location[0].longitude
-			output["number_of_results"] = len(location)
-			#output["accuracy"] = answer.get('importance')
-			output["place_id"] = answer.get("osm_id")
-			output["input_string"] = address
-			if answer.get("address"):
-				output["postcode"] = re.sub('[^0-9-]+', '', answer.get("address").get("postcode")) ###???
-				output["freguesia"] = answer.get("address").get("suburb")
-				output["localidade"] = answer.get("address").get("city")
-				if not output["localidade"]:
-					output["localidade"] = answer.get("address").get("town")
-				output["formatted_address"] = answer.get('address').get('display_name')
-				
-			output["type"] = answer.get('osm_type')
-			
-			output["service"] = self.SERVICES[self.CURRENT_SERVICE]['service']
-			
-			if saveraw:
-				output["response"] = location[0].raw		
-
-		else:
-			output['status'] = "ZERO_RESULTS"
-		
-		return output
-		
-		
-
-	def bing(self, addr, local, country, saveraw):
-		output=self.initOutput()	
-		
-		# create query	
-		address = "" if addr is None else addr
-		address = address + ("" if local is None else "," + local)
-		address = address + ("" if country is None else "," + country)
-		
-		# init service if not init yet
-		if not self.geolocator_bing:		
-			self.geolocator_bing = Bing(api_key=self.SERVICES[self.CURRENT_SERVICE]['key'])
-
-
-		# geocode address
-		location = self.geolocator_bing.geocode(address,  exactly_one=False) #culture='PT',  include_neighborhood=True,
-		if location is not None:
-			answer = location[0].raw
-			
-			output['status'] = "OK"
-			output["latitude"] = location[0].latitude
-			output["longitude"] = location[0].longitude
-			output["number_of_results"] = len(location)
-			
-			
-			if answer.get("address"):
-				output["formatted_address"] = answer.get('address').get('formattedAddress')
-				output["localidade"] = answer.get("address").get("locality")
-				output["distrito"] = answer.get("address").get("adminDistrict")
-				output["concelho"] = answer.get("address").get("adminDistrict2")
-				output["freguesia"] = answer.get("address").get("neighborhood")		
-				output["postcode"] = answer.get("address").get("postalCode")
-			
-			output["accuracy"] = answer.get('confidence')
-			
-			output["input_string"] = address
-			
-			
-			output["service"] = self.SERVICES[self.CURRENT_SERVICE]['service']
-			
-
-			if saveraw:
-				output["response"] = location[0].raw	
-
-		else:
-			output['status'] = "ZERO_RESULTS"
-		
-		return output
-
-
-
-
-
-
-
-
-
 	###
-
+	'''
 	def azure(self, addr, local, country, saveraw):
 		output=self.initOutput()	
 		
@@ -457,117 +455,6 @@ class Geocode():
 			output['status'] = "ZERO_RESULTS"
 		
 		return output
+	'''
 
-
-
-
-
-
-	############ PROCESS FILE ############
-
-			
-
-	# service = None => all available
-	def geocode(self, addr = None, local= None, country = "Portugal", saveraw = True, service = None):	
-		geocoded = False
-		self.CURRENT_SERVICE = 0
-		geocode_result = None
-		
-		if service:
-			for s in self.SERVICES:
-				if s['service'] != service:
-					self.IGNORE.append(s['service'])
-
-		while not geocoded:
-			try:				
-				serv = self.getService()	
-				geocode_result = serv(addr, local, country, saveraw)
-				if geocode_result['status'] == "OK":
-					geocoded = True
-					break
-				else:
-					self.CURRENT_SERVICE = self.CURRENT_SERVICE + 1
-				'''
-						else:
-							if DEBUG:
-								logger.error ('\n--------------------------------------------------------------------')
-								logger.error ('ERROR: no addr/name for id_localization [{}].'.format(address.split('|')[0]))
-								logger.error ('Passing to next address.')
-								logger.error ('--------------------------------------------------------------------')
-							CURRENT_SERVICE = 0
-							geocode_result = initOutput()
-							geocode_result['id_localization'] = address.split('|')[0]
-							geocode_result['status'] = "NO_DATA"				
-							break	
-				'''
-			except UnableToGeocode as e:
-				if self.SHOW_ERRORS:
-					pass
-					#logger.error ('\n--------------------------------------------------------------------')
-					#logger.error ('ERROR: Unable to geocode addr [{}].'.format(addr))
-					#logger.error ('Passing to next address.')
-					#logger.error ('--------------------------------------------------------------------')
-				self.CURRENT_SERVICE = 0
-				geocode_result = self.initOutput()
-				geocode_result['status'] = "UNABLE"
-				geocode_result['service'] = "ALL"
-				break
-			except OutOfServices as e:
-				#if self.SHOW_ERRORS:
-				#	logger.error ('\n--------------------------------------------------------------------')
-				#	logger.error ('ERROR: you reached the limit on all services. No more services available.')
-				#	logger.error ('Saving the all sucessuful results and exiting the application.')
-				#	logger.error ('--------------------------------------------------------------------')
-				raise
-				#return None
-			except (GeocoderQueryError,GeocoderAuthenticationFailure,GeocoderInsufficientPrivileges,ConfigurationError):
-				#if self.SHOW_ERRORS:
-				#	logger.error ('\n--------------------------------------------------------------------')
-				#	logger.error ('ERROR: something wrong with either the service or the query.')
-				#	logger.error ('Check service: [{}]'.format(self.SERVICES[self.CURRENT_SERVICE]['id']))
-				#	logger.error ('Passing to the next service.')
-				#	logger.error ('--------------------------------------------------------------------')
-				raise
-			except GeocoderQuotaExceeded:
-				#if self.SHOW_ERRORS:
-				#	logger.error ('\n--------------------------------------------------------------------')
-				#	logger.error ('ERROR: you have reached the end of your quota for service [{}].'.format(self.SERVICES[self.CURRENT_SERVICE]['id']))
-				#	logger.error ('Passing to the next service.')
-				#	logger.error ('--------------------------------------------------------------------')
-				raise
-			except GeocoderTimedOut:
-				#if self.SHOW_ERRORS:
-				#	logger.error ('\n--------------------------------------------------------------------')
-				#	logger.error ('TIMEOUT: something went wrong with the geocoding the address: [{}].'.format(addr))
-				#	logger.error ('while using service [{}].'.format(self.SERVICES[self.CURRENT_SERVICE]['id']))
-				#	logger.error ('Passing to the next service.')
-				#	logger.error ('--------------------------------------------------------------------')
-				raise
-			except (GeocoderServiceError,GeocoderUnavailable):
-				#if self.SHOW_ERRORS:
-				#	logger.error ('\n--------------------------------------------------------------------')
-				#	logger.error ('ERROR: service unavailable or unknown error for service [{}].'.format(self.SERVICES[self.CURRENT_SERVICE]['id']))
-				#	logger.error ('Passing to the next service.')
-				#	logger.error ('--------------------------------------------------------------------')
-				raise
-			except GeocoderNotFound:
-				#if self.SHOW_ERRORS:
-				#	logger.error ('\n--------------------------------------------------------------------')
-				#	logger.error ('ERROR: unknown service > [{}].'.format(self.SERVICES[self.CURRENT_SERVICE]['id']))				
-				#	logger.error ('check if this service still exists!')
-				#	logger.error ('Passing to the next service.')
-				#	logger.error ('--------------------------------------------------------------------')
-				raise
-			except Exception as e:				
-				#logger.error ('\n--------------------------------------------------------------------')
-				#logger.error("Unknown catastrophic error while processing address: {}".format(addr))
-				#logger.error('while using service > [{}].'.format(self.SERVICES[self.CURRENT_SERVICE]['id']))	
-				#logger.error("Check the error and correct it before restart the application.")
-				#logger.error(str(e))
-				#logger.error('--------------------------------------------------------------------')
-				raise
-
-		
-		return geocode_result
-		
 		
