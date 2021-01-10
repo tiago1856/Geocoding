@@ -1,18 +1,36 @@
+# Geocoding API
 
-Version: 1.0.0
+## Version
 
-# Description
-* ~~Given a list of geocoding services (with the respective keys), an address and/or entity name [, city, country], it returns a json containing the geocoding results, with **'status': 'OK'**. In caso, the geocode was impossible by using every available service, then returns a json with **'status': 'UNABLE'**, with all the others fields set to None.~~
-* ~~If no services are available, then an _OutOfServices_ exception will be throwed~~
-* ~~In case of incorrect usage (e.g.: incorrect arguments) or some other catastrophic event, a general _Exception_ will be throwed~~
+1.0.0
 
+##  Description
+* Given an address and/or economic entity [, city, country], it returns a json containing the as much information as possible about that location/entity.
+* Most services require a key to operate.
 
-# Requirements
+## Requirements
+
 * Python 3.7.x
 * geopy
 * certifi
 
-# Fields
+### Installation
+
+Use the package manager [pip](https://pip.pypa.io/en/stable/) to install the necessary packages.
+
+```bash
+pip install geopy
+pip install certifi
+```
+
+Or just:
+
+```bash
+pip install -r requirements.txt
+```
+
+
+##  Returned Data
 * **formatted_address**
 * **latitude**
 * **longitude**
@@ -30,16 +48,16 @@ Version: 1.0.0
 * **freguesia**
 * **service**
 
-# Available services
-* Google
-* TomTom
-* Bing
-* Here
-* Nominatum
+##  Available services
+* [Google](https://cloud.google.com/maps-platform/)
+* [TomTom](https://developer.tomtom.com/)
+* [Here](https://developer.here.com/)
+* [Bing](https://www.bingmapsportal.com/)
+* [Nominatum](https://nominatim.org/)
 * ~~Azure~~
 
 
-# Example
+## Usage
 
 ```python
 
@@ -56,3 +74,7 @@ try:
 except Exception as e:	
 	print (e)		
 ```
+
+
+## License
+[MIT](https://choosealicense.com/licenses/mit/)

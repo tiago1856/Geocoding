@@ -1,5 +1,5 @@
 #import pandas as pd
-import logging
+#import logging
 #import time
 import re
 #import random
@@ -38,12 +38,12 @@ geopy.geocoders.options.default_ssl_context = ctx
 
 ############ logging ############
 
-logger = logging.getLogger("root")
-logger.setLevel(logging.DEBUG)
+#logger = logging.getLogger("root")
+#logger.setLevel(logging.DEBUG)
 #create console handler
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-logger.addHandler(ch)
+#ch = logging.StreamHandler()
+#ch.setLevel(logging.DEBUG)
+#logger.addHandler(ch)
 
 
 ############ ERRORS ############
@@ -89,7 +89,7 @@ class Geocode():
 
 	def google(self, address=None, name=None, city=None, country=None, key_google=None):
 		if not key_google:
-			raise RuntimeError("Requires a key! Check https://developers.google.com/maps/documentation/geocoding/get-api-key for more information.")
+			raise RuntimeError("Requires a key! Check https://cloud.google.com/maps-platform/ for more information.")
 		if not address and not name and not city and not country:
 			raise RuntimeError("Requires name and/or an address and/or a city and/or a country!")
 
@@ -144,7 +144,7 @@ class Geocode():
 	def tomtom(self, address = None, city=None, country=None, key_tomtom=None):
 
 		if not key_tomtom:
-			raise RuntimeError("Requires a key! Check https://developer.tomtom.com/search-api/search-api-documentation/geocoding for more information.")
+			raise RuntimeError("Requires a key! Check https://developer.tomtom.com/ for more information.")
 		if not address and not city and not country:
 			raise RuntimeError("Requires an address and/or a city and/or a country!")
 
